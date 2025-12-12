@@ -1,0 +1,23 @@
+name: Coswarm Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "^1.25"
+
+      - name: Deploy via Coswarm action
+        uses: ./
+        with:
+          token: ${{ secrets.COSWARM_DEPLOY_TOKEN }}
+          image: ${{ secrets.COSWARM_IMAGE }}
+          base-url: ${{ secrets.COSWARM_API_URL }}
