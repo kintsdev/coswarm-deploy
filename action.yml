@@ -19,7 +19,7 @@ outputs:
     description: "Raw response body returned by the Coswarm API."
 runs:
   using: "node20"
-  main: "dist/index.js"
+  main: "build/index.js"
 branding:
   icon: "cloud"
   color: "blue"
