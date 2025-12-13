@@ -1,0 +1,20 @@
+{
+  "name": "coswarm-deploy-action",
+  "version": "1.0.0",
+  "description": "GitHub Action that triggers Coswarm deployments and files issues on failure.",
+  "main": "dist/index.js",
+  "scripts": {
+    "bundle": "ncc build src/index.js -o dist"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1"
+  }
+}

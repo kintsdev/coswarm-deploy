@@ -11,24 +11,15 @@ inputs:
   base-url:
     description: "Coswarm API base URL. Must be provided explicitly."
     required: true
+  github-token:
+    description: "Personal access token to create an issue when the deploy fails. Defaults to GITHUB_TOKEN."
+    required: false
+outputs:
+  response:
+    description: "Raw response body returned by the Coswarm API."
 runs:
-  using: "composite"
-  steps:
-    - id: deploy
-      shell: bash
-      run: |
-        set -euo pipefail
-        BASE_URL="${{ inputs.base-url }}"
-        if [[ -z "${BASE_URL}" ]]; then
-          echo "Error: inputs.base-url must be set." >&2
-          exit 1
-        fi
-        # Ensure the URL has no trailing slash before appending the endpoint
-        API_URL="${BASE_URL%%/}/api/v1/apps/deploy"
-        echo "Triggering deploy via ${API_URL}"
-        curl -sS -L "${API_URL}" \
-          -H 'Content-Type: application/json' \
-          -d "$(jq -n --arg token "${{ inputs.token }}" --arg image "${{ inputs.image }}" '{token:$token,image:$image}')"
+  using: "node20"
+  main: "dist/index.js"
 branding:
   icon: "cloud"
   color: "blue"

@@ -1,12 +1,6 @@
 # Coswarm Deploy GitHub Action
 
-This action sends a deployment request to the Coswarm API. It replicates the manual `curl` call:
-
-```
-curl -L 'http://localhost:3000/api/v1/apps/deploy' \
-  -H 'Content-Type: application/json' \
-  -d '{"token":"app_29fd8aa20b9d48506fe243ec925dec74","image":"redis:alpine"}'
-```
+This Node.js action sends a deployment request to the Coswarm API without relying on local `curl` tooling. On failure, it can automatically create a GitHub issue (using `@actions/core` and `@actions/github`) to alert maintainers—just provide a token with permission to create issues.
 
 ## Inputs
 
@@ -14,7 +8,14 @@ curl -L 'http://localhost:3000/api/v1/apps/deploy' \
 | ---- | -------- | ----------- |
 | `token` | Yes | Deployment token. Store this in a secret such as `COSWARM_DEPLOY_TOKEN`. |
 | `image` | Yes | Container image reference, e.g. `redis:alpine`. |
-| `base-url` | Yes | Coswarm API base URL. |
+| `base-url` | Yes | Coswarm API base URL, e.g. `https://api.coswarm.com`. |
+| `github-token` | No | Token with permission to open issues. Defaults to the `GITHUB_TOKEN` environment variable when omitted. |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| `response` | Raw response body returned by the Coswarm API. |
 
 ## Example workflow
 
@@ -42,4 +43,5 @@ jobs:
           base-url: ${{ secrets.COSWARM_API_URL }}
           token: ${{ secrets.COSWARM_DEPLOY_TOKEN }}
           image: redis:alpine
+          github-token: ${{ github.token }}
 ```
