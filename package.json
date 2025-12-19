@@ -1,6 +1,6 @@
 {
   "name": "coswarm-deploy-action",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "GitHub Action that triggers Coswarm deployments and files issues on failure.",
   "main": "build/index.js",
   "scripts": {
