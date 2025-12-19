@@ -62,6 +62,71 @@ async function openFailureIssue(githubToken, context, details) {
   await octokit.rest.issues.create({ owner, repo, title, body });
 }
 
+async function postSuccessComment(githubToken, context, details) {
+  if (!githubToken) {
+    core.info('No GitHub token available to post success comment.');
+    return;
+  }
+  const octokit = github.getOctokit(githubToken);
+  const { owner, repo } = context.repo;
+  const body = [
+    `✅ Coswarm deploy succeeded for ${details.image}`,
+    '',
+    `**API URL:** ${details.apiUrl}`,
+    `**Image:** ${details.image}`,
+  ].join('\n');
+
+  // If run from a release event, update the release body with a note
+  if (context.payload && context.payload.release && context.payload.release.tag_name) {
+    const tag = context.payload.release.tag_name;
+    try {
+      const rel = await octokit.rest.repos.getReleaseByTag({ owner, repo, tag });
+      const newBody = `${rel.data.body || ''}\n\n${body}`;
+      await octokit.rest.repos.updateRelease({
+        owner,
+        repo,
+        release_id: rel.data.id,
+        body: newBody,
+      });
+      return;
+    } catch (err) {
+      core.warning(`Could not update release: ${err.message}`);
+    }
+  }
+
+  // If triggered by a pull request, comment on the PR
+  if (context.payload && context.payload.pull_request && context.payload.pull_request.number) {
+    try {
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: context.payload.pull_request.number,
+        body,
+      });
+      return;
+    } catch (err) {
+      core.warning(`Could not create PR comment: ${err.message}`);
+    }
+  }
+
+  // Fall back to commit comment if we have a SHA
+  if (context.sha) {
+    try {
+      await octokit.rest.repos.createCommitComment({
+        owner,
+        repo,
+        commit_sha: context.sha,
+        body,
+      });
+      return;
+    } catch (err) {
+      core.warning(`Could not create commit comment: ${err.message}`);
+    }
+  }
+
+  core.info('No suitable target found to post success comment; skipping.');
+}
+
 async function run() {
   let image = '';
   let baseUrl = '';
@@ -78,6 +143,14 @@ async function run() {
     core.info(`Triggering deploy via ${apiUrl}`);
     const responseBody = await triggerDeploy(apiUrl, token, image);
     core.setOutput('response', responseBody);
+    try {
+      await postSuccessComment(githubToken, github.context, {
+        apiUrl,
+        image,
+      });
+    } catch (postErr) {
+      core.warning(`Failed to post success comment: ${postErr.message}`);
+    }
   } catch (error) {
     core.setFailed(error.message);
     await openFailureIssue(githubToken, github.context, {
