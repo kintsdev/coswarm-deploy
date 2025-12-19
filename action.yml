@@ -12,7 +12,7 @@ inputs:
     description: "Coswarm API base URL. Must be provided explicitly."
     required: true
   github-token:
-    description: "Personal access token to create an issue when the deploy fails. Defaults to GITHUB_TOKEN."
+    description: "GitHub token used to create issues/comments and update releases. Defaults to GITHUB_TOKEN.\n\nIf you rely on the default GITHUB_TOKEN, ensure the calling workflow grants the action write permissions (for example `contents: write` and `issues: write`). For workflows triggered from forks, secrets and write permissions may be unavailable — in that case provide a Personal Access Token (PAT) via this input with minimal required scopes (e.g. `repo`/`public_repo`)."
     required: false
 outputs:
   response:
