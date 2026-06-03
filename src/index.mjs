@@ -1,7 +1,10 @@
-const core = require('@actions/core');
-const github = require('@actions/github');
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import { fileURLToPath } from 'node:url';
 
-function resolveApiUrl(baseUrl) {
+const DEFAULT_TIMEOUT_MS = 60000;
+
+export function resolveApiUrl(baseUrl) {
   if (!baseUrl) {
     throw new Error('inputs.base-url must be provided.');
   }
@@ -9,13 +12,26 @@ function resolveApiUrl(baseUrl) {
   return `${normalized}/api/v1/apps/deploy`;
 }
 
-async function triggerDeploy(apiUrl, token, image) {
+export async function triggerDeploy(apiUrl, token, image, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const payload = JSON.stringify({ token, image });
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: payload,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Deploy request timed out after ${timeoutMs}ms.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const bodyText = await response.text();
   if (!response.ok) {
     const error = new Error(
@@ -27,7 +43,7 @@ async function triggerDeploy(apiUrl, token, image) {
   return bodyText;
 }
 
-async function openFailureIssue(githubToken, context, details) {
+export async function openFailureIssue(githubToken, context, details) {
   if (!githubToken) {
     core.warning('No GitHub token available to create a failure issue.');
     return;
@@ -61,44 +77,44 @@ async function openFailureIssue(githubToken, context, details) {
   await octokit.rest.issues.create({ owner, repo, title, body });
 }
 
-async function postSuccessComment(githubToken, context, details) {
+export async function postSuccessComment(githubToken, context, details) {
   if (!githubToken) {
     core.info('No GitHub token available to post success comment.');
     return;
   }
   const octokit = github.getOctokit(githubToken);
   const { owner, repo } = context.repo;
-    const lines = [
-      `✅ Coswarm deploy succeeded for ${details.image}`,
-      '',
-      `**Image:** ${details.image}`,
-      `**Deployed at:** ${new Date().toISOString()}`,
-    ];
+  const lines = [
+    `✅ Coswarm deploy succeeded for ${details.image}`,
+    '',
+    `**Image:** ${details.image}`,
+    `**Deployed at:** ${new Date().toISOString()}`,
+  ];
 
-    if (context.payload && context.payload.release && context.payload.release.tag_name) {
-      const tag = context.payload.release.tag_name;
-      const relUrl = context.payload.release.html_url;
-      lines.push(`**Release:** ${relUrl ? `[${tag}](${relUrl})` : tag}`);
-    }
+  if (context.payload && context.payload.release && context.payload.release.tag_name) {
+    const tag = context.payload.release.tag_name;
+    const relUrl = context.payload.release.html_url;
+    lines.push(`**Release:** ${relUrl ? `[${tag}](${relUrl})` : tag}`);
+  }
 
-    if (context.payload && context.payload.pull_request && context.payload.pull_request.number) {
-      const pr = context.payload.pull_request;
-      const prUrl = pr.html_url;
-      lines.push(`**Pull Request:** ${prUrl ? `[#${pr.number}](${prUrl})` : `#${pr.number}`}`);
-    }
+  if (context.payload && context.payload.pull_request && context.payload.pull_request.number) {
+    const pr = context.payload.pull_request;
+    const prUrl = pr.html_url;
+    lines.push(`**Pull Request:** ${prUrl ? `[#${pr.number}](${prUrl})` : `#${pr.number}`}`);
+  }
 
-    if (context.sha) {
-      const shortSha = context.sha.substring(0, 7);
-      const commitUrl = `https://github.com/${owner}/${repo}/commit/${context.sha}`;
-      lines.push(`**Commit:** [${shortSha}](${commitUrl})`);
-    }
+  if (context.sha) {
+    const shortSha = context.sha.substring(0, 7);
+    const commitUrl = `https://github.com/${owner}/${repo}/commit/${context.sha}`;
+    lines.push(`**Commit:** [${shortSha}](${commitUrl})`);
+  }
 
-    if (context.runId) {
-      const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
-      lines.push(`**Workflow run:** ${context.runNumber ? `[#${context.runNumber}](${runUrl})` : `[Run details](${runUrl})`}`);
-    }
+  if (context.runId) {
+    const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+    lines.push(`**Workflow run:** ${context.runNumber ? `[#${context.runNumber}](${runUrl})` : `[Run details](${runUrl})`}`);
+  }
 
-    const body = lines.join('\n');
+  const body = lines.join('\n');
 
   // If run from a release event, update the release body with a note
   if (context.payload && context.payload.release && context.payload.release.tag_name) {
@@ -151,7 +167,7 @@ async function postSuccessComment(githubToken, context, details) {
   core.info('No suitable target found to post success comment; skipping.');
 }
 
-async function run() {
+export async function run() {
   let image = '';
   let baseUrl = '';
   let apiUrl = '';
@@ -162,10 +178,12 @@ async function run() {
     const token = core.getInput('token', { required: true });
     image = core.getInput('image', { required: true });
     baseUrl = core.getInput('base-url', { required: true });
+    const timeoutInput = core.getInput('timeout-ms');
+    const timeoutMs = timeoutInput ? Number(timeoutInput) : DEFAULT_TIMEOUT_MS;
 
     apiUrl = resolveApiUrl(baseUrl);
     core.info(`Triggering deploy via ${apiUrl}`);
-    const responseBody = await triggerDeploy(apiUrl, token, image);
+    const responseBody = await triggerDeploy(apiUrl, token, image, timeoutMs);
     core.setOutput('response', responseBody);
     try {
       await postSuccessComment(githubToken, github.context, {
@@ -187,4 +205,7 @@ async function run() {
   }
 }
 
-run();
+// Only auto-run when executed directly (not when imported by tests).
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  run();
+}

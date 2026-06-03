@@ -10,6 +10,7 @@ This Node.js action sends a deployment request to the Coswarm API without relyin
 | `image` | Yes | Container image reference, e.g. `redis:alpine`. |
 | `base-url` | Yes | Coswarm API base URL, e.g. `https://api.coswarm.com`. |
 | `github-token` | No | Token with permission to open issues. Defaults to the `GITHUB_TOKEN` environment variable when omitted. |
+| `timeout-ms` | No | Maximum time in milliseconds to wait for the deploy API before aborting. Defaults to `60000`. |
 
 ## Outputs
 
@@ -35,11 +36,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "^1.25"
 
       - name: Coswarm Deploy
         uses: kintsdev/coswarm-deploy@latest

@@ -14,12 +14,16 @@ inputs:
   github-token:
     description: "GitHub token used to create issues/comments and update releases. Defaults to GITHUB_TOKEN.\n\nIf you rely on the default GITHUB_TOKEN, ensure the calling workflow grants the action write permissions (for example `contents: write` and `issues: write`). For workflows triggered from forks, secrets and write permissions may be unavailable — in that case provide a Personal Access Token (PAT) via this input with minimal required scopes (e.g. `repo`/`public_repo`)."
     required: false
+  timeout-ms:
+    description: "Maximum time in milliseconds to wait for the Coswarm deploy API before aborting. Defaults to 60000."
+    required: false
+    default: "60000"
 outputs:
   response:
     description: "Raw response body returned by the Coswarm API."
 runs:
-  using: "node20"
-  main: "build/index.js"
+  using: "node24"
+  main: "build/index.mjs"
 branding:
   icon: "cloud"
   color: "blue"

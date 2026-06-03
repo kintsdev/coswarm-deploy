@@ -2,9 +2,10 @@
   "name": "coswarm-deploy-action",
   "version": "1.0.7",
   "description": "GitHub Action that triggers Coswarm deployments and files issues on failure.",
-  "main": "build/index.js",
+  "main": "build/index.mjs",
   "scripts": {
-    "bundle": "ncc build src/index.js -o build"
+    "bundle": "ncc build src/index.mjs -o build",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=24.0.0"
